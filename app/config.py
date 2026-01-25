@@ -20,6 +20,19 @@ class Settings(BaseSettings):
     # Database settings
     DATABASE_URL: str = "postgresql://pdfuser:pdfpassword@localhost:5432/pdfdb"
 
+    # LLM Settings
+    LLM_PROVIDER: str = "ollama"  # Options: "ollama", "openrouter"
+
+    # Ollama settings
+    OLLAMA_HOST: str = "http://localhost:11434"
+    OLLAMA_MODEL: str = "llama3.2"
+
+    # OpenRouter settings
+    OPENROUTER_API_KEY: str = ""
+    OPENROUTER_MODEL: str = "meta-llama/llama-3.1-8b-instruct:free"
+    OPENROUTER_SITE_URL: str = ""
+    OPENROUTER_SITE_NAME: str = "PDF Extractor API"
+
     # Upload directories - define as class variables
     UPLOAD_FOLDER: str = str(Path(__file__).resolve().parent.parent / "uploads" / "pdfs")
     IMAGE_FOLDER: str = str(Path(__file__).resolve().parent.parent / "uploads" / "images")

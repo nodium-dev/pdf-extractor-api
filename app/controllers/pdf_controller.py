@@ -20,10 +20,14 @@ router = APIRouter(tags=["PDF Operations"])
     response_model=PDFExtractResponse,
     responses={400: {"model": ErrorResponse}},
     summary="Extract content from a PDF file",
-    description="Upload a PDF file and extract text, tables, and images."
+    description="Upload a PDF file and extract text, tables, and images. Optionally generates an LLM-powered summary."
 )
 async def extract_pdf(
         file: UploadFile = File(...),
+        include_summary: bool = Query(
+            True,
+            description="Generate an LLM-powered summary of the document"
+        ),
         db: Session = Depends(get_db)
 ) -> Any:
     """
@@ -31,6 +35,7 @@ async def extract_pdf(
 
     Args:
         file (UploadFile): The PDF file to extract from
+        include_summary (bool): Whether to generate LLM summary
         db (Session): Database session
 
     Returns:
@@ -48,7 +53,7 @@ async def extract_pdf(
         file_info = await save_upload_file(file)
 
         # Process the PDF
-        result = await PDFService.process_pdf(db, file_info)
+        result = await PDFService.process_pdf(db, file_info, include_summary=include_summary)
 
         # Ensure we have the document ID in the response
         if not result.id:
@@ -60,6 +65,7 @@ async def extract_pdf(
         # Debug: Print the response data
         print(f"Extract response: ID={result.id}, Filename={result.filename}")
         print(f"Extract response contains {len(result.images)} images")
+        print(f"Summary included: {result.summary is not None}")
 
         return result
 

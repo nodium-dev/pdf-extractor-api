@@ -66,6 +66,16 @@ async def startup_event():
     except Exception as e:
         logger.error(f"  Error accessing FILE_RETENTION_MINUTES: {str(e)}")
 
+    # Log LLM configuration
+    logger.info("LLM Configuration:")
+    logger.info(f"  LLM_PROVIDER: {settings.LLM_PROVIDER}")
+    if settings.LLM_PROVIDER.lower() == "ollama":
+        logger.info(f"  OLLAMA_HOST: {settings.OLLAMA_HOST}")
+        logger.info(f"  OLLAMA_MODEL: {settings.OLLAMA_MODEL}")
+    else:
+        logger.info(f"  OPENROUTER_MODEL: {settings.OPENROUTER_MODEL}")
+        logger.info(f"  OPENROUTER_API_KEY: {'***' if settings.OPENROUTER_API_KEY else 'Not set'}")
+
     try:
         # Start the file cleanup worker
         file_cleanup_worker.start()

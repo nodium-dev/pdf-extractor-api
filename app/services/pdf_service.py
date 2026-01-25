@@ -2,8 +2,9 @@ import fitz  # PyMuPDF
 import pdfplumber
 import io
 import os
+import logging
 from PIL import Image as PILImage
-from typing import Dict, List, Tuple, Any
+from typing import Dict, List, Tuple, Any, Optional
 from sqlalchemy.orm import Session
 
 from app.config import settings
@@ -11,6 +12,9 @@ from app.models.schemas import TextData, TableData, ImageLink, FileInfo, PDFExtr
 from app.utils.file_utils import get_image_url
 from app.database.repository import PDFRepository
 from app.database.models import PDFDocument
+from app.services.llm_service import LLMService
+
+logger = logging.getLogger(__name__)
 
 
 class PDFService:
@@ -83,13 +87,19 @@ class PDFService:
         return TableData(pages=tables)
 
     @classmethod
-    async def process_pdf(cls, db: Session, file_info: FileInfo) -> PDFExtractResponse:
+    async def process_pdf(
+        cls,
+        db: Session,
+        file_info: FileInfo,
+        include_summary: bool = True
+    ) -> PDFExtractResponse:
         """
         Process a PDF file to extract text, tables, and images.
 
         Args:
             db (Session): Database session
             file_info (FileInfo): Information about the PDF file
+            include_summary (bool): Whether to generate LLM summary
 
         Returns:
             PDFExtractResponse: Processed PDF data with database IDs
@@ -109,6 +119,11 @@ class PDFService:
         if table_data.pages:
             PDFRepository.save_tables(db, document_id, table_data.pages)
 
+        # Generate LLM summary if requested
+        summary = None
+        if include_summary:
+            summary = await cls.generate_summary(text_data)
+
         # Return response model
         return PDFExtractResponse(
             id=document_id,
@@ -116,8 +131,38 @@ class PDFService:
             text=text_data,
             tables=table_data,
             images=image_links,
+            summary=summary,
             created_at=document.created_at
         )
+
+    @classmethod
+    async def generate_summary(cls, text_data: TextData) -> Optional[str]:
+        """
+        Generate an LLM summary from extracted text data.
+
+        Args:
+            text_data: The extracted text data from the PDF
+
+        Returns:
+            Summary string or None if generation fails
+        """
+        try:
+            # Combine all page text into a single document
+            full_text = "\n\n".join(
+                f"{page_name}:\n{content}"
+                for page_name, content in text_data.pages.items()
+            )
+
+            if not full_text.strip():
+                logger.warning("No text content available for summarization")
+                return None
+
+            summary = await LLMService.summarize_text(full_text)
+            return summary
+
+        except Exception as e:
+            logger.error(f"Error generating PDF summary: {str(e)}")
+            return None
 
     @classmethod
     async def get_pdf_by_id(cls, db: Session, document_id: str) -> PDFExtractResponse:
@@ -173,5 +218,6 @@ class PDFService:
             text=TextData(pages=text_pages),
             tables=TableData(pages=table_pages),
             images=image_links,
+            summary=None,  # Summary is not stored, regenerate if needed
             created_at=document.created_at
         )
