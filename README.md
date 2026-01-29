@@ -56,22 +56,26 @@ pdf_extractor/
 ## Installation
 
 1. Clone the repository:
+
 ```bash
 git clone https://github.com/yourusername/pdf-extractor.git
 cd pdf-extractor
 ```
 
 2. Install Poetry (if not already installed):
+
 ```bash
 curl -sSL https://install.python-poetry.org | python3 -
 ```
 
 3. Install the dependencies:
+
 ```bash
 poetry install
 ```
 
 4. Set up environment variables:
+
 ```bash
 cp .env.example .env
 # Edit .env file as needed
@@ -92,6 +96,7 @@ poetry run uvicorn app.main:app --reload
 ### Using Docker
 
 1. Build and start the Docker container:
+
 ```bash
 # Build the image
 docker-compose build
@@ -101,6 +106,7 @@ docker-compose up -d
 ```
 
 2. Or use the Makefile (recommended):
+
 ```bash
 # Show available commands
 make help
@@ -124,26 +130,28 @@ make down
 make clean
 ```
 
-
 The application will be available at http://localhost:8000.
 
 API documentation is available at:
+
 - Swagger UI: http://localhost:8000/docs
 - ReDoc: http://localhost:8000/redoc
 
 ## API Endpoints
 
-- `POST /api/v1/extract`: Upload a PDF file to extract text, tables, and images
+- `POST /api/v1/extract`: Upload a PDF file to extract text, tables, images, and LLM summary
 - `GET /api/v1/documents/{document_id}`: Get previously processed PDF by ID
 - `GET /api/v1/documents`: List all processed PDFs with pagination
 - `GET /api/v1/images/{filename}`: Download an extracted image
 - `GET /api/v1/workers/status`: Get the status of background workers
+- `GET /api/v1/llm/status`: Get the LLM service configuration and status
 - `GET /health`: Health check endpoint
 - `GET /`: Welcome message and links to documentation
 
 ## Features
 
 - **PDF Extraction**: Extract text, tables, and images from PDF files
+- **LLM-Powered Summarization**: Generate intelligent summaries using Ollama (local) or OpenRouter (hosted)
 - **Database Storage**: Store extracted content in PostgreSQL database
 - **ID-Based References**: Track all content with unique document IDs
 - **Automatic Cleanup**: Background worker removes files after retention period (default: 10 minutes)
@@ -157,13 +165,21 @@ API documentation is available at:
 ### Extract content from a PDF file
 
 ```bash
+# With LLM summary (default)
 curl -X POST "http://localhost:8000/api/v1/extract" \
+  -H "accept: application/json" \
+  -H "Content-Type: multipart/form-data" \
+  -F "file=@/path/to/your/document.pdf"
+
+# Without LLM summary
+curl -X POST "http://localhost:8000/api/v1/extract?include_summary=false" \
   -H "accept: application/json" \
   -H "Content-Type: multipart/form-data" \
   -F "file=@/path/to/your/document.pdf"
 ```
 
 Response:
+
 ```json
 {
   "id": "ff8c7e4a-1234-5678-9abc-def012345678",
@@ -177,7 +193,10 @@ Response:
   "tables": {
     "pages": {
       "Page 1": [
-        [["Header 1", "Header 2"], ["Value 1", "Value 2"]]
+        [
+          ["Header 1", "Header 2"],
+          ["Value 1", "Value 2"]
+        ]
       ]
     }
   },
@@ -190,6 +209,7 @@ Response:
       "document_id": "ff8c7e4a-1234-5678-9abc-def012345678"
     }
   ],
+  "summary": "This document describes...",
   "created_at": "2023-01-01T12:00:00Z"
 }
 ```
@@ -209,6 +229,7 @@ curl -X GET "http://localhost:8000/api/v1/documents?skip=0&limit=10" \
 ```
 
 Response:
+
 ```json
 {
   "documents": [
@@ -225,6 +246,53 @@ Response:
   "limit": 10
 }
 
+## LLM Configuration
+
+The API supports LLM-powered document summarization with two providers:
+
+### Ollama (Local/Self-hosted)
+
+For local or self-hosted LLM usage with Ollama:
+
+```bash
+LLM_PROVIDER=ollama
+OLLAMA_HOST=http://localhost:11434  # Or your remote Ollama server
+OLLAMA_MODEL=llama3.2
+```
+
+### OpenRouter (Cloud-hosted)
+
+For cloud-hosted LLM access via OpenRouter (supports many models):
+
+```bash
+LLM_PROVIDER=openrouter
+OPENROUTER_API_KEY=your_api_key_here
+OPENROUTER_MODEL=meta-llama/llama-3.1-8b-instruct:free
+OPENROUTER_SITE_URL=https://your-site.com  # Optional
+OPENROUTER_SITE_NAME=Your App Name  # Optional
+```
+
+Get your OpenRouter API key at: https://openrouter.ai/
+
+### Check LLM Status
+
+```bash
+curl http://localhost:8000/api/v1/llm/status
+```
+
+Response:
+```json
+{
+  "llm_service": {
+    "available": true,
+    "provider": "ollama",
+    "model": "llama3.2",
+    "host": "http://localhost:11434"
+  }
+}
+```
+
 ## License
 
 MIT
+```

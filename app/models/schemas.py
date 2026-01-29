@@ -35,6 +35,7 @@ class PDFExtractResponse(BaseModel):
     text: TextData = Field(description="Extracted text data")
     tables: TableData = Field(description="Extracted table data")
     images: List[ImageLink] = Field(description="List of links to extracted images")
+    summary: Optional[str] = Field(default=None, description="LLM-generated summary of the document")
     created_at: datetime = Field(description="When the document was processed")
 
 
